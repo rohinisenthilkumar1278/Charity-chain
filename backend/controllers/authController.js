@@ -75,7 +75,7 @@ async function charityLogin(req, res) {
 
 async function adminSignup(req, res) {
   try {
-    const { name, email, password, walletAddress, setupKey } = req.body;
+    const { name, email, password, walletAddress, phone, setupKey } = req.body;
     if (!setupKey || setupKey !== process.env.ADMIN_SETUP_KEY) {
       return res.status(403).json({ error: "Invalid setup key" });
     }
@@ -87,7 +87,7 @@ async function adminSignup(req, res) {
 
     const passwordHash = await hashPassword(password);
     const admin = await Admin.create({
-      name, email: email.toLowerCase(), passwordHash,
+      name, email: email.toLowerCase(), passwordHash, phone,
       walletAddress: walletAddress ? walletAddress.toLowerCase() : "",
     });
 
@@ -117,4 +117,3 @@ module.exports = {
   charitySignup, charityLogin,
   adminSignup, adminLogin,
 };
-

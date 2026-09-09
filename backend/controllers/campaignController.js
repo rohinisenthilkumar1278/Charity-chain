@@ -1,6 +1,6 @@
 ﻿const Campaign = require("../models/Campaign");
 const Charity = require("../models/Charity");
-const { createNotification } = require("./notificationController");
+const { createNotification, notifyAllDonors, notifyAllAdmins } = require("./notificationController");
 const { issueReceipt } = require("./receiptController");
 
 async function createCampaign(req, res) {
@@ -24,6 +24,11 @@ async function createCampaign(req, res) {
       targetAmountEth,
       deadline: deadline || null,
     });
+
+    notifyAllDonors(
+      "New Campaign Started",
+      `${charity.name} started a new campaign & wishlist donation: "${campaign.title}". Would you like to donate?`
+    ).catch(() => {});
 
     res.status(201).json(campaign);
   } catch (err) {
@@ -149,16 +154,18 @@ async function recordDonation(req, res) {
 
     await campaign.save();
 
+    const Donor = require("../models/Donor");
+    const donorRecord = await Donor.findOne({ walletAddress: donorWallet.toLowerCase() }).select("name");
+    const donorLabel = donorRecord?.name ? `${donorRecord.name} (${donorWallet})` : donorWallet;
+
     await createNotification(
       "charity",
       campaign.charityId,
       "New Donation Received",
-      wishlistItemId
-        ? `A donor pledged ${Number(itemQty) || 1} item(s) toward "${campaign.title}".`
-        : `A donor gave ${finalAmount} ETH toward "${campaign.title}".`
+      `${donorLabel} donated ${amountEth} ETH via Campaign Donation toward "${campaign.title}".`
     );
 
-    if (!wishlistItemId && finalAmount > 0) {
+    if (Number(amountEth) > 0) {
       const Charity = require("../models/Charity");
       const charityDoc = await Charity.findById(campaign.charityId);
       await issueReceipt({
@@ -167,7 +174,7 @@ async function recordDonation(req, res) {
         charityName: charityDoc?.name || "Unknown Charity",
         campaignId: campaign._id,
         campaignTitle: campaign.title,
-        amountEth: finalAmount,
+        amountEth: Number(amountEth),
         txHash,
         donationType: "campaign",
       });
@@ -257,6 +264,14 @@ async function submitForReview(req, res) {
     }
     campaign.status = "PendingReview";
     await campaign.save();
+
+    const Charity = require("../models/Charity");
+    const charityDoc = await Charity.findById(campaign.charityId).select("name");
+    notifyAllAdmins(
+      "Campaign Proof Submitted",
+      `${charityDoc?.name || "A charity"} submitted proof for "${campaign.title}". Please check and verify.`
+    ).catch(() => {});
+
     res.json(campaign);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -414,8 +429,3 @@ module.exports = {
   addProof,
   postUpdate,
 };
-
-
-
-
-

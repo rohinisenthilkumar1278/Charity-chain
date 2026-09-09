@@ -1,10 +1,46 @@
 ﻿const Notification = require("../models/Notification");
+const { sendSMS } = require("../utils/sms");
+
+function modelForRecipient(recipientType) {
+  if (recipientType === "donor") return require("../models/Donor");
+  if (recipientType === "admin") return require("../models/Admin");
+  return require("../models/Charity");
+}
 
 async function createNotification(recipientType, recipientId, title, message) {
   try {
     await Notification.create({ recipientType, recipientId, title, message });
+
+    // Best-effort SMS alongside the in-app notification
+    const Model = modelForRecipient(recipientType);
+    const person = await Model.findById(recipientId).select("phone");
+    if (person?.phone) {
+      sendSMS(person.phone, `CharityChain: ${title} - ${message}`).catch(() => {});
+    }
   } catch (err) {
     console.error("Failed to create notification:", err.message);
+  }
+}
+
+// ── Notify every donor in the system (e.g. a charity launched a new campaign) ──
+async function notifyAllDonors(title, message) {
+  try {
+    const Donor = require("../models/Donor");
+    const donors = await Donor.find().select("_id");
+    await Promise.all(donors.map((d) => createNotification("donor", d._id, title, message)));
+  } catch (err) {
+    console.error("Failed to broadcast to donors:", err.message);
+  }
+}
+
+// ── Notify every admin in the system (e.g. a charity submitted something for review) ──
+async function notifyAllAdmins(title, message) {
+  try {
+    const Admin = require("../models/Admin");
+    const admins = await Admin.find().select("_id");
+    await Promise.all(admins.map((a) => createNotification("admin", a._id, title, message)));
+  } catch (err) {
+    console.error("Failed to broadcast to admins:", err.message);
   }
 }
 
@@ -34,4 +70,4 @@ async function markAsRead(req, res) {
   }
 }
 
-module.exports = { createNotification, listMyNotifications, markAsRead };
+module.exports = { createNotification, notifyAllDonors, notifyAllAdmins, listMyNotifications, markAsRead };

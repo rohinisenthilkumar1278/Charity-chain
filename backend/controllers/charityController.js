@@ -99,8 +99,12 @@ async function recordDirectDonation(req, res) {
     charity.totalDirectEth += Number(amountEth);
     await charity.save();
 
+    const Donor = require("../models/Donor");
+    const donorRecord = await Donor.findOne({ walletAddress: donorWallet.toLowerCase() }).select("name");
+    const donorLabel = donorRecord?.name ? `${donorRecord.name} (${donorWallet})` : donorWallet;
+
     await createNotification("charity", charity._id, "New Direct Donation",
-      `A donor gave ${amountEth} ETH directly to ${charity.name}.`);
+      `${donorLabel} donated ${amountEth} ETH via Direct Donation to ${charity.name}.`);
 
     await issueReceipt({
       donorWallet,
@@ -241,6 +245,7 @@ module.exports = {
   updateBlacklist,
   addDocuments,
 };
+
 
 
 
