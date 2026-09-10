@@ -25,10 +25,10 @@ async function createCampaign(req, res) {
       deadline: deadline || null,
     });
 
-    notifyAllDonors(
+    await notifyAllDonors(
       "New Campaign Started",
       `${charity.name} started a new campaign & wishlist donation: "${campaign.title}". Would you like to donate?`
-    ).catch(() => {});
+    );
 
     res.status(201).json(campaign);
   } catch (err) {
@@ -267,10 +267,10 @@ async function submitForReview(req, res) {
 
     const Charity = require("../models/Charity");
     const charityDoc = await Charity.findById(campaign.charityId).select("name");
-    notifyAllAdmins(
+    await notifyAllAdmins(
       "Campaign Proof Submitted",
       `${charityDoc?.name || "A charity"} submitted proof for "${campaign.title}". Please check and verify.`
-    ).catch(() => {});
+    );
 
     res.json(campaign);
   } catch (err) {

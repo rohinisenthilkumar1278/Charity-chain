@@ -15,7 +15,7 @@ async function createNotification(recipientType, recipientId, title, message) {
     const Model = modelForRecipient(recipientType);
     const person = await Model.findById(recipientId).select("phone");
     if (person?.phone) {
-      sendSMS(person.phone, `CharityChain: ${title} - ${message}`).catch(() => {});
+      await sendSMS(person.phone, `CharityChain: ${title} - ${message}`).catch((e) => console.error("SMS failed:", e.message));
     }
   } catch (err) {
     console.error("Failed to create notification:", err.message);

@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+﻿const mongoose = require("mongoose");
 const dns = require("dns");
 
 // Node's own DNS resolver on Windows sometimes ignores the OS-level DNS
@@ -9,15 +9,16 @@ dns.setServers(["8.8.8.8", "8.8.4.4"]);
 async function connectDB() {
   const uri = process.env.MONGO_URI;
   if (!uri) {
-    console.error("MONGO_URI is not set. Copy .env.example to .env and fill it in.");
-    process.exit(1);
+    console.error("MONGO_URI is not set. Copy .env.example to .env and fill it in, or set it in Vercel's Environment Variables.");
+    if (!process.env.VERCEL) process.exit(1);
+    return;
   }
   try {
     await mongoose.connect(uri);
     console.log("MongoDB connected:", mongoose.connection.name);
   } catch (err) {
     console.error("MongoDB connection failed:", err.message);
-    process.exit(1);
+    if (!process.env.VERCEL) process.exit(1);
   }
 }
 

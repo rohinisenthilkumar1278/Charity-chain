@@ -44,24 +44,19 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
+connectDB();
+
 const PORT = process.env.PORT || 5050;
 
-connectDB()
-  .then(() => {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log("=================================");
-      console.log(`CharityChain Backend Live on Port ${PORT}`);
-      console.log(`Health Check: http://127.0.0.1:${PORT}/api/health`);
-      console.log("=================================");
-    });
-  })
-  .catch((err) => {
-    console.error("Failed to start server due to DB error:", err);
+// Vercel runs this file as a serverless function (it imports `app` directly and
+// handles requests itself) — app.listen() should only run for local `node server.js`.
+if (!process.env.VERCEL) {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log("=================================");
+    console.log(`CharityChain Backend Live on Port ${PORT}`);
+    console.log(`Health Check: http://127.0.0.1:${PORT}/api/health`);
+    console.log("=================================");
   });
+}
 
-
-
-
-
-
-
+module.exports = app;

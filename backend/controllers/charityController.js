@@ -2,7 +2,7 @@
 const DirectDonation = require("../models/DirectDonation");
 const { issueReceipt } = require("./receiptController");
 
-const { createNotification } = require("./notificationController");
+const { createNotification, notifyAllAdmins } = require("./notificationController");
 
 async function submitRegistration(req, res) {
   try {
@@ -36,6 +36,12 @@ async function submitRegistration(req, res) {
       { new: true }
     );
     if (!charity) return res.status(404).json({ error: "Charity account not found" });
+
+    await notifyAllAdmins(
+      "Charity Registration Submitted",
+      `${charity.name} submitted registration documents for verification. Please check and verify.`
+    );
+
     res.json(charity);
   } catch (err) {
     if (err.code === 11000) {
@@ -245,14 +251,3 @@ module.exports = {
   updateBlacklist,
   addDocuments,
 };
-
-
-
-
-
-
-
-
-
-
-

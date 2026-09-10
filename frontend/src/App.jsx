@@ -2,6 +2,10 @@ import React, { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import jsPDF from "jspdf";
 
+// Backend URL: set VITE_API_BASE_URL in Vercel's env vars for the frontend project
+// (e.g. https://charity-chain-backend.vercel.app). Falls back to localhost for local dev.
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5050";
+
 export default function App() {
   // ── Application Navigation & Auth States ──
   const [role, setRole] = useState(null); // null | "donor" | "charity" | "admin"
@@ -39,7 +43,7 @@ export default function App() {
   const [isAdminSignUp, setIsAdminSignUp] = useState(false);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [adminLoading, setAdminLoading] = useState(false);
-  const [adminAuthForm, setAdminAuthForm] = useState({ name: "", email: "", password: "", setupKey: "" });
+  const [adminAuthForm, setAdminAuthForm] = useState({ name: "", email: "", phone: "", password: "", setupKey: "" });
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [tab, setTab] = useState("campaigns"); // donor: "campaigns" | "wishlistDonate" | "directDonate" | "bigValue" | "leaderboard" | "notifications" | "history" — charity: "createCampaign" | "myCampaigns" | "profile" | "notifications" — admin: "admin"
 
@@ -204,7 +208,7 @@ export default function App() {
   const fetchCampaigns = async () => {
     setCampaignsLoading(true);
     try {
-      const res = await fetch("http://localhost:5050/api/campaigns");
+      const res = await fetch(`${API_BASE}/api/campaigns`);
       const data = await res.json();
       if (res.ok) setCampaigns(data);
     } catch (err) {
@@ -219,7 +223,7 @@ export default function App() {
     const token = localStorage.getItem("charityChain_charity_token");
     if (!token) return;
     try {
-      const res = await fetch("http://localhost:5050/api/campaigns/mine", {
+      const res = await fetch(`${API_BASE}/api/campaigns/mine`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -235,7 +239,7 @@ export default function App() {
     if (!token) return;
     setMyDirectDonationsLoading(true);
     try {
-      const res = await fetch("http://localhost:5050/api/charities/me/direct-donations", {
+      const res = await fetch(`${API_BASE}/api/charities/me/direct-donations`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -258,7 +262,7 @@ export default function App() {
 
     setNotificationsLoading(true);
     try {
-      const res = await fetch("http://localhost:5050/api/notifications/mine", {
+      const res = await fetch(`${API_BASE}/api/notifications/mine`, {
         headers: { Authorization: `Bearer ${activeToken}` },
       });
       const data = await res.json();
@@ -276,7 +280,7 @@ export default function App() {
     const activeToken = role === "charity" ? charityToken : donorToken;
     if (!activeToken) return;
     try {
-      const res = await fetch(`http://localhost:5050/api/notifications/${id}/read`, {
+      const res = await fetch(`${API_BASE}/api/notifications/${id}/read`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${activeToken}` },
       });
@@ -292,7 +296,7 @@ export default function App() {
     const token = localStorage.getItem("charityChain_admin_token");
     if (!token) return;
     try {
-      const res = await fetch("http://localhost:5050/api/charities?status=Pending", {
+      const res = await fetch(`${API_BASE}/api/charities?status=Pending`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -307,7 +311,7 @@ export default function App() {
     if (!account) return;
     setReceiptsLoading(true);
     try {
-      const res = await fetch(`http://localhost:5050/api/receipts/wallet/${account}`);
+      const res = await fetch(`${API_BASE}/api/receipts/wallet/${account}`);
       const data = await res.json();
       if (res.ok) setReceipts(data);
     } catch (err) {
@@ -407,7 +411,7 @@ export default function App() {
     const wallet = donorProfile?.walletAddress || account;
     if (!wallet) return;
     try {
-      const res = await fetch(`http://localhost:5050/api/agreements/donor/${wallet}`);
+      const res = await fetch(`${API_BASE}/api/agreements/donor/${wallet}`);
       const data = await res.json();
       if (res.ok) setMyAgreements(data);
     } catch (err) {
@@ -418,7 +422,7 @@ export default function App() {
   // ── Big Value Agreement: charities open for supplemental funding ──
   const fetchOpenSupplementalAgreements = async () => {
     try {
-      const res = await fetch("http://localhost:5050/api/agreements/open-for-supplemental");
+      const res = await fetch(`${API_BASE}/api/agreements/open-for-supplemental`);
       const data = await res.json();
       if (res.ok) setOpenSupplementalAgreements(data);
     } catch (err) {
@@ -431,7 +435,7 @@ export default function App() {
     const token = localStorage.getItem("charityChain_charity_token");
     if (!token) return;
     try {
-      const res = await fetch("http://localhost:5050/api/agreements/mine", {
+      const res = await fetch(`${API_BASE}/api/agreements/mine`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -446,7 +450,7 @@ export default function App() {
     const token = localStorage.getItem("charityChain_admin_token");
     if (!token) return;
     try {
-      const res = await fetch("http://localhost:5050/api/agreements/review-queue", {
+      const res = await fetch(`${API_BASE}/api/agreements/review-queue`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -464,7 +468,7 @@ export default function App() {
     if (!isValidEthAddress(wallet.trim())) return alert("Please enter a valid 0x... Ethereum address.");
     setAgreementLoading(true);
     try {
-      const res = await fetch("http://localhost:5050/api/agreements", {
+      const res = await fetch(`${API_BASE}/api/agreements`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...agreementForm, donorWallet: wallet.trim() }),
@@ -501,7 +505,7 @@ export default function App() {
       setStatusMessage({ type: "info", text: "Transaction broadcasted! Awaiting confirmation..." });
       await tx.wait();
 
-      const res = await fetch(`http://localhost:5050/api/agreements/${agreement._id}/pay-tranche`, {
+      const res = await fetch(`${API_BASE}/api/agreements/${agreement._id}/pay-tranche`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ txHash: tx.hash }),
@@ -521,7 +525,7 @@ export default function App() {
   const stopAgreementFunding = async (agreementId) => {
     if (!window.confirm("Stop funding this agreement? The remaining amount will open up for other donors.")) return;
     try {
-      const res = await fetch(`http://localhost:5050/api/agreements/${agreementId}/stop-funding`, { method: "PATCH" });
+      const res = await fetch(`${API_BASE}/api/agreements/${agreementId}/stop-funding`, { method: "PATCH" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setMyAgreements(prev => prev.map(a => (a._id === data._id ? { ...data, charityId: a.charityId } : a)));
@@ -553,7 +557,7 @@ export default function App() {
       });
       await tx.wait();
 
-      const res = await fetch(`http://localhost:5050/api/agreements/${agreement._id}/supplemental`, {
+      const res = await fetch(`${API_BASE}/api/agreements/${agreement._id}/supplemental`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ donorWallet: wallet, amountEth: amount, txHash: tx.hash }),
@@ -572,7 +576,7 @@ export default function App() {
     if (!proofDraftAgreement.label || !proofDraftAgreement.url) return alert("Please fill in both fields.");
     const token = localStorage.getItem("charityChain_charity_token");
     try {
-      const res = await fetch(`http://localhost:5050/api/agreements/${agreementId}/proof`, {
+      const res = await fetch(`${API_BASE}/api/agreements/${agreementId}/proof`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(proofDraftAgreement),
@@ -594,7 +598,7 @@ export default function App() {
     if (decision === "reject" && !note) return;
     const token = localStorage.getItem("charityChain_admin_token");
     try {
-      const res = await fetch(`http://localhost:5050/api/agreements/${agreementId}/review`, {
+      const res = await fetch(`${API_BASE}/api/agreements/${agreementId}/review`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ decision, note: note || "" }),
@@ -613,7 +617,7 @@ export default function App() {
     const token = localStorage.getItem("charityChain_admin_token");
     if (!token) return;
     try {
-      const res = await fetch("http://localhost:5050/api/charities?status=Verified", {
+      const res = await fetch(`${API_BASE}/api/charities?status=Verified`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -626,7 +630,7 @@ export default function App() {
   const toggleBlacklist = async (id, blacklisted) => {
     const token = localStorage.getItem("charityChain_admin_token");
     try {
-      const res = await fetch(`http://localhost:5050/api/charities/${id}/blacklist`, {
+      const res = await fetch(`${API_BASE}/api/charities/${id}/blacklist`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ blacklisted }),
@@ -643,7 +647,7 @@ export default function App() {
   // ── Fetch campaigns awaiting Admin review ──
   const fetchReviewCampaigns = async () => {
     try {
-      const res = await fetch("http://localhost:5050/api/campaigns?status=PendingReview");
+      const res = await fetch(`${API_BASE}/api/campaigns?status=PendingReview`);
       const data = await res.json();
       if (res.ok) setReviewCampaigns(data);
     } catch (err) {
@@ -657,7 +661,7 @@ export default function App() {
     const note = decision === "reject" ? window.prompt("Reason for rejection (shown to the charity):") : window.prompt("Optional note for the charity:");
     if (decision === "reject" && !note) return;
     try {
-      const res = await fetch(`http://localhost:5050/api/campaigns/${campaignId}/review`, {
+      const res = await fetch(`${API_BASE}/api/campaigns/${campaignId}/review`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ decision, note: note || "" }),
@@ -675,7 +679,7 @@ export default function App() {
   const handleSubmitForReview = async (campaignId) => {
     const token = localStorage.getItem("charityChain_charity_token");
     try {
-      const res = await fetch(`http://localhost:5050/api/campaigns/${campaignId}/submit-review`, {
+      const res = await fetch(`${API_BASE}/api/campaigns/${campaignId}/submit-review`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -712,8 +716,8 @@ export default function App() {
     setStatusMessage({ type: "", text: "" });
 
     const endpoint = isSignUp
-      ? "http://localhost:5050/api/auth/donor/signup"
-      : "http://localhost:5050/api/auth/donor/login";
+      ? `${API_BASE}/api/auth/donor/signup`
+      : `${API_BASE}/api/auth/donor/login`;
 
     let payload;
 
@@ -779,8 +783,8 @@ export default function App() {
     setStatusMessage({ type: "", text: "" });
 
     const endpoint = isCharitySignUp
-      ? "http://localhost:5050/api/auth/charity/signup"
-      : "http://localhost:5050/api/auth/charity/login";
+      ? `${API_BASE}/api/auth/charity/signup`
+      : `${API_BASE}/api/auth/charity/login`;
 
     let payload;
     if (isCharitySignUp) {
@@ -838,7 +842,7 @@ export default function App() {
       const token = localStorage.getItem("charityChain_charity_token");
       const documents = uploadedCert ? [{ label: uploadedCert.label, cid: uploadedCert.cid }] : [];
 
-      const res = await fetch("http://localhost:5050/api/charities/me/submit", {
+      const res = await fetch(`${API_BASE}/api/charities/me/submit`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -892,7 +896,7 @@ export default function App() {
     else setUploadingCert(true);
 
     try {
-      const res = await fetch("http://localhost:5050/api/uploads", {
+      const res = await fetch(`${API_BASE}/api/uploads`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -921,7 +925,7 @@ export default function App() {
 
     setUploadingAgreementProof(true);
     try {
-      const res = await fetch("http://localhost:5050/api/uploads", {
+      const res = await fetch(`${API_BASE}/api/uploads`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -944,7 +948,7 @@ export default function App() {
     setProfileSaving(true);
     const token = localStorage.getItem("charityChain_charity_token");
     try {
-      const res = await fetch("http://localhost:5050/api/charities/me", {
+      const res = await fetch(`${API_BASE}/api/charities/me`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(profileEditForm),
@@ -976,13 +980,14 @@ export default function App() {
     setStatusMessage({ type: "", text: "" });
 
     const endpoint = isAdminSignUp
-      ? "http://localhost:5050/api/auth/admin/signup"
-      : "http://localhost:5050/api/auth/admin/login";
+      ? `${API_BASE}/api/auth/admin/signup`
+      : `${API_BASE}/api/auth/admin/login`;
 
     const payload = isAdminSignUp
       ? {
           name: adminAuthForm.name.trim(),
           email: adminAuthForm.email.trim(),
+          phone: adminAuthForm.phone.trim(),
           password: adminAuthForm.password,
           setupKey: adminAuthForm.setupKey.trim(),
         }
@@ -1024,7 +1029,7 @@ export default function App() {
   const approveCharityReal = async (id) => {
     const token = localStorage.getItem("charityChain_admin_token");
     try {
-      const res = await fetch(`http://localhost:5050/api/charities/${id}/status`, {
+      const res = await fetch(`${API_BASE}/api/charities/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: "Verified" }),
@@ -1041,7 +1046,7 @@ export default function App() {
   const rejectCharityReal = async (id) => {
     const token = localStorage.getItem("charityChain_admin_token");
     try {
-      const res = await fetch(`http://localhost:5050/api/charities/${id}/status`, {
+      const res = await fetch(`${API_BASE}/api/charities/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: "Rejected" }),
@@ -1060,7 +1065,7 @@ export default function App() {
     e.preventDefault();
     const token = localStorage.getItem("charityChain_charity_token");
     try {
-      const res = await fetch("http://localhost:5050/api/campaigns", {
+      const res = await fetch(`${API_BASE}/api/campaigns`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(campaignForm),
@@ -1081,7 +1086,7 @@ export default function App() {
     if (!wishlistDraft.item || !wishlistDraft.quantity) return;
     const token = localStorage.getItem("charityChain_charity_token");
     try {
-      const res = await fetch(`http://localhost:5050/api/campaigns/${campaignId}/wishlist`, {
+      const res = await fetch(`${API_BASE}/api/campaigns/${campaignId}/wishlist`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ items: [{ item: wishlistDraft.item, quantity: Number(wishlistDraft.quantity) }] }),
@@ -1100,7 +1105,7 @@ export default function App() {
     if (!proofDraft.label || !proofDraft.url) return;
     const token = localStorage.getItem("charityChain_charity_token");
     try {
-      const res = await fetch(`http://localhost:5050/api/campaigns/${campaignId}/proof`, {
+      const res = await fetch(`${API_BASE}/api/campaigns/${campaignId}/proof`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(proofDraft),
@@ -1119,7 +1124,7 @@ export default function App() {
     if (!updateDraft.trim()) return;
     const token = localStorage.getItem("charityChain_charity_token");
     try {
-      const res = await fetch(`http://localhost:5050/api/campaigns/${campaignId}/updates`, {
+      const res = await fetch(`${API_BASE}/api/campaigns/${campaignId}/updates`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ message: updateDraft.trim() }),
@@ -1137,7 +1142,7 @@ export default function App() {
   const handleUpdateWishlistItem = async (campaignId, itemId, updates) => {
     const token = localStorage.getItem("charityChain_charity_token");
     try {
-      const res = await fetch(`http://localhost:5050/api/campaigns/${campaignId}/wishlist/${itemId}`, {
+      const res = await fetch(`${API_BASE}/api/campaigns/${campaignId}/wishlist/${itemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(updates),
@@ -1153,7 +1158,7 @@ export default function App() {
   const handleDeleteWishlistItem = async (campaignId, itemId) => {
     const token = localStorage.getItem("charityChain_charity_token");
     try {
-      const res = await fetch(`http://localhost:5050/api/campaigns/${campaignId}/wishlist/${itemId}`, {
+      const res = await fetch(`${API_BASE}/api/campaigns/${campaignId}/wishlist/${itemId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -1169,7 +1174,7 @@ export default function App() {
   const handleCloseCampaign = async (campaignId, status) => {
     const token = localStorage.getItem("charityChain_charity_token");
     try {
-      const res = await fetch(`http://localhost:5050/api/campaigns/${campaignId}/close`, {
+      const res = await fetch(`${API_BASE}/api/campaigns/${campaignId}/close`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status }),
@@ -1241,7 +1246,7 @@ export default function App() {
       await tx.wait();
 
       // Record the donation on the backend against this campaign
-      const res = await fetch(`http://localhost:5050/api/campaigns/${selectedCampaign._id}/donations`, {
+      const res = await fetch(`${API_BASE}/api/campaigns/${selectedCampaign._id}/donations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1270,7 +1275,7 @@ export default function App() {
   const fetchAllVerifiedCharities = async () => {
     setCharitiesLoading(true);
     try {
-      const res = await fetch("http://localhost:5050/api/charities?status=Verified");
+      const res = await fetch(`${API_BASE}/api/charities?status=Verified`);
       const data = await res.json();
       if (res.ok) setAllVerifiedCharities(data.filter(c => !c.blacklisted));
     } catch (err) {
@@ -1284,7 +1289,7 @@ export default function App() {
   const fetchImpactBrowseList = async () => {
     setImpactBrowseLoading(true);
     try {
-      const res = await fetch("http://localhost:5050/api/charities?status=Verified");
+      const res = await fetch(`${API_BASE}/api/charities?status=Verified`);
       const data = await res.json();
       if (res.ok) setImpactBrowseList(data.filter(c => !c.blacklisted));
     } catch (err) {
@@ -1299,7 +1304,7 @@ export default function App() {
     setImpactLoading(true);
     setImpactData(null);
     try {
-      const res = await fetch(`http://localhost:5050/api/impact/${charityId}`);
+      const res = await fetch(`${API_BASE}/api/impact/${charityId}`);
       const data = await res.json();
       if (res.ok) setImpactData(data);
     } catch (err) {
@@ -1341,7 +1346,7 @@ export default function App() {
       setStatusMessage({ type: "info", text: "Transaction broadcasted! Awaiting confirmation..." });
       await tx.wait();
 
-      const res = await fetch(`http://localhost:5050/api/charities/${directDonateTarget._id}/donations`, {
+      const res = await fetch(`${API_BASE}/api/charities/${directDonateTarget._id}/donations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ donorWallet: cleanAddress, amountEth: parseFloat(directDonationAmount), txHash: tx.hash }),
@@ -1370,7 +1375,7 @@ export default function App() {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("label", label);
-    const res = await fetch("http://localhost:5050/api/uploads", {
+    const res = await fetch(`${API_BASE}/api/uploads`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
@@ -1389,7 +1394,7 @@ export default function App() {
     if (qty <= 0 || qty > remaining) return alert(`Please enter a quantity between 1 and ${remaining}.`);
 
     try {
-      const res = await fetch(`http://localhost:5050/api/campaigns/${campaign._id}/wishlist-pledges`, {
+      const res = await fetch(`${API_BASE}/api/campaigns/${campaign._id}/wishlist-pledges`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ wishlistItemId: item._id, donorWallet: wallet, quantity: qty }),
@@ -1410,7 +1415,7 @@ export default function App() {
     setUploadingShipProof(pledgeId);
     try {
       const uploaded = await uploadGenericFile(shipProofFile, "Shipment Proof");
-      const res = await fetch(`http://localhost:5050/api/campaigns/${campaign._id}/wishlist-pledges/${pledgeId}/ship`, {
+      const res = await fetch(`${API_BASE}/api/campaigns/${campaign._id}/wishlist-pledges/${pledgeId}/ship`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ proofUrl: uploaded.url, proofLabel: uploaded.label }),
@@ -1434,7 +1439,7 @@ export default function App() {
     const token = localStorage.getItem("charityChain_charity_token");
     try {
       const uploaded = await uploadGenericFile(receiveProofFile, "Receipt Confirmation");
-      const res = await fetch(`http://localhost:5050/api/campaigns/${campaignId}/wishlist-pledges/${pledgeId}/confirm`, {
+      const res = await fetch(`${API_BASE}/api/campaigns/${campaignId}/wishlist-pledges/${pledgeId}/confirm`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ proofUrl: uploaded.url, proofLabel: uploaded.label }),
@@ -1471,7 +1476,7 @@ export default function App() {
     try {
       if (role === "charity") {
         const token = localStorage.getItem("charityChain_charity_token");
-        const res = await fetch("http://localhost:5050/api/charities/me", {
+        const res = await fetch(`${API_BASE}/api/charities/me`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ walletAddress: cleanAddress }),
@@ -1486,7 +1491,7 @@ export default function App() {
         setStatusMessage({ type: "success", text: "Wallet updated!" });
       } else {
         const token = localStorage.getItem("charityChain_token");
-        const res = await fetch(`http://localhost:5050/api/donors/${donorProfile._id}/link-wallet`, {
+        const res = await fetch(`${API_BASE}/api/donors/${donorProfile._id}/link-wallet`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ walletAddress: cleanAddress }),
@@ -1518,7 +1523,7 @@ export default function App() {
     setStatusMessage({ type: "", text: "" });
     setDonorForm({ name: "", email: "", phone: "", address: "", password: "" });
     setCharityAuthForm({ name: "", email: "", phone: "", address: "", password: "" });
-    setAdminAuthForm({ name: "", email: "", password: "", setupKey: "" });
+    setAdminAuthForm({ name: "", email: "", phone: "", password: "", setupKey: "" });
     setViewingImpactId(null);
     setBrowsingImpactList(false);
   };
@@ -2036,6 +2041,9 @@ export default function App() {
           <form onSubmit={handleAdminAuth} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             {isAdminSignUp && (
               <input required type="text" placeholder="Full Name" value={adminAuthForm.name} onChange={e => setAdminAuthForm({ ...adminAuthForm, name: e.target.value })} style={{ padding: "12px", background: "#1F2937", border: "1px solid #374151", borderRadius: "8px", color: "#fff" }} />
+            )}
+            {isAdminSignUp && (
+              <input type="tel" placeholder="Phone Number (for SMS alerts)" value={adminAuthForm.phone} onChange={e => setAdminAuthForm({ ...adminAuthForm, phone: e.target.value })} style={{ padding: "12px", background: "#1F2937", border: "1px solid #374151", borderRadius: "8px", color: "#fff" }} />
             )}
             <input required type="email" autoComplete="off" name="admin-email-field" readOnly onFocus={e => e.target.removeAttribute("readonly")} placeholder="Email" value={adminAuthForm.email} onChange={e => setAdminAuthForm({ ...adminAuthForm, email: e.target.value })} style={{ padding: "12px", background: "#1F2937", border: "1px solid #374151", borderRadius: "8px", color: "#fff" }} />
             <div style={{ position: "relative" }}>
